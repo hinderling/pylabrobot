@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from pylabrobot.legacy.plate_reading.backend import ImagerBackend
 from pylabrobot.legacy.plate_reading.standard import (
@@ -162,12 +162,16 @@ class PymmcoreImagerBackend(ImagerBackend):
       self._core.mda.cancel()
 
   async def acquire(
-    self, sequence: "useq.MDASequence"
+    self, sequence: "Union[useq.MDASequence, Iterable[useq.MDAEvent]]"
   ) -> List[Tuple["np.ndarray", "useq.MDAEvent", dict]]:
-    """Run an arbitrary useq MDASequence and return ``(image, event, metadata)`` frames.
+    """Run a useq MDASequence (or any iterable of MDAEvents) and return
+    ``(image, event, metadata)`` frames.
 
     This is the native interface: anything expressible in useq-schema (z-stacks, time
-    series, grids, channels, per-position sub-sequences) runs as-is.
+    series, grids, channels, per-position sub-sequences, SLM images, hardware autofocus)
+    runs as-is on pymmcore-plus's acquisition engine. Passing a generator or queue-backed
+    iterable of events enables reactive ("smart microscopy") acquisitions where analysis
+    of earlier frames decides later events.
     """
     frames: List[Tuple["np.ndarray", "useq.MDAEvent", dict]] = []
 
