@@ -14,6 +14,7 @@ plate in the PLR resource library works without further configuration.
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -162,7 +163,9 @@ class PymmcoreImagerBackend(ImagerBackend):
       self._core.mda.cancel()
 
   async def acquire(
-    self, sequence: "Union[useq.MDASequence, Iterable[useq.MDAEvent]]"
+    self,
+    sequence: "Union[useq.MDASequence, Iterable[useq.MDAEvent]]",
+    output: Optional[Any] = None,
   ) -> List[Tuple["np.ndarray", "useq.MDAEvent", dict]]:
     """Run a useq MDASequence (or any iterable of MDAEvents) and return
     ``(image, event, metadata)`` frames.
@@ -172,6 +175,12 @@ class PymmcoreImagerBackend(ImagerBackend):
     runs as-is on pymmcore-plus's acquisition engine. Passing a generator or queue-backed
     iterable of events enables reactive ("smart microscopy") acquisitions where analysis
     of earlier frames decides later events.
+
+    Args:
+      sequence: a useq MDASequence or any iterable of MDAEvents.
+      output: forwarded to ``MDARunner.run(output=...)``: a path (e.g. ``*.ome.zarr``,
+        ``*.ome.tiff``) or any pymmcore-plus frame handler, for streaming data to disk
+        with full useq metadata instead of accumulating arrays in memory.
     """
     frames: List[Tuple["np.ndarray", "useq.MDAEvent", dict]] = []
 
@@ -180,7 +189,8 @@ class PymmcoreImagerBackend(ImagerBackend):
 
     self.core.mda.events.frameReady.connect(_on_frame)
     try:
-      await asyncio.get_running_loop().run_in_executor(None, self.core.mda.run, sequence)
+      run = functools.partial(self.core.mda.run, sequence, output=output)
+      await asyncio.get_running_loop().run_in_executor(None, run)
     finally:
       self.core.mda.events.frameReady.disconnect(_on_frame)
     return frames

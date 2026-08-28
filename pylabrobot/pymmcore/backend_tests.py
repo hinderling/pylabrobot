@@ -44,9 +44,11 @@ class _FakeMDA:
   def __init__(self):
     self.events = type("E", (), {"frameReady": _FakeEvents()})()
     self.sequences: List = []
+    self.outputs: List = []
 
-  def run(self, sequence):
+  def run(self, sequence, output=None):
     self.sequences.append(sequence)
+    self.outputs.append(output)
     for i, event in enumerate(sequence):
       for cb in self.events.frameReady._cbs:
         cb(f"img{i}", event, {})
